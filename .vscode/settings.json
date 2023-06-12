@@ -1,0 +1,20 @@
+{
+  "files.associations": {
+    "fs_getattr.h": "c"
+  },
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/**",
+    "/usr/include",
+    "/usr/local/include",
+    "/usr/include/x86_64-linux-gnu",
+    "/usr/include/c++/7",
+    "/usr/include/c++/7/bits",
+    "/usr/include/c++/7/ext",
+    "/usr/include/x86_64-linux-gnu/c++/7",
+    "/usr/include/x86_64-linux-gnu/c++/7/bits"
+  ],
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true
+}
