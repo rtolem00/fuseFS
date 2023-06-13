@@ -3,15 +3,33 @@
 
 inode_t* create_inode(mode_t mode, uid_t uid, gid_t gid)
 {
-    // Allocate memory for the new inode
-    // Assign the mode, uid, and gid
-    // Initialize other fields to their default values
-    // Return the new inode
+  inode_t* inode = malloc(sizeof(inode_t));
+  inode->ino = generate_unique_ino();  // Function to generate a unique i-node number
+  inode->mode = mode;
+  inode->nlink = 0;
+  inode->uid = uid;
+  inode->gid = gid;
+  inode->size = 0;
+  inode->atime = current_time();       // Function to get current time
+  inode->mtime = current_time();
+  inode->ctime = current_time();
+  inode->block_count = 0;
+  inode->blocks = NULL;
+
+  return inode;
 }
 
 void delete_inode(inode_t* inode)
 {
-    // Free the memory associated with the inode
+  if (inode->blocks)
+  {
+    for (int i = 0; i < inode->block_count; i++)
+    {
+      free_block(inode->blocks[i]);  // Function to free data blocks
+    }
+    free(inode->blocks);
+  }
+  free(inode);
 }
 
 int read_inode(inode_t* inode, char* buf, size_t size, off_t offset)
