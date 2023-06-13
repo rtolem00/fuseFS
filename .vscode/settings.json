@@ -1,6 +1,14 @@
 {
   "files.associations": {
-    "fs_getattr.h": "c"
+    "fs_getattr.h": "c",
+    "fs_data_block.h": "c",
+    "stdint.h": "c",
+    "fs_cache.h": "c",
+    "hashtable.h": "c",
+    "list.h": "c",
+    "kernel.h": "c",
+    "printk.h": "c",
+    "cache.h": "c"
   },
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/**",
