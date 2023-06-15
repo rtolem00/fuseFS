@@ -10,18 +10,11 @@ typedef struct dir_entry
   char filename[NAME_MAX+1];    // name of this entry
 } dir_entry_t;
 
-typedef struct dir
-{
-  inode_t* inode;
-  dir_entry_t* entries;
-  uint64_t num_entries;
-} dir_t;
 
 // Function Prototypes
-dir_t* create_dir(inode_t* inode);
-void delete_dir(dir_t* dir);
-int add_dir_entry(dir_t* dir, const char* name, uint64_t ino);
-int remove_dir_entry(dir_t* dir, const char* name);
-dir_entry_t* lookup_dir_entry(dir_t* dir, const char* name);
+dir_entry_t* create_dir_entry(uint64_t ino, const char* filename);
+void delete_dir_entry(dir_entry_t* entry);
+dir_entry_t* read_dir_entry(inode_t* inode, off_t offset);
+int write_dir_entry(inode_t* inode, dir_entry_t* entry, off_t offset);
 
 #endif // FS_DIR_ENTRY_H

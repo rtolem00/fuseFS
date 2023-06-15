@@ -1,6 +1,11 @@
 #include <fs_inode.h>
 #include <structures/fs_data_block.h>
 
+#include <inode/inode_store.h>
+#include <structures/bitmap/inode_bitmap.h>
+#include <structures/bitmap/block_bitmap.h>
+
+
 // Function to update the inode access time
 void update_inode_access_time(inode_t* inode)
 {
@@ -42,6 +47,10 @@ inode_t* create_inode(mode_t mode, uid_t uid, gid_t gid)
   inode->block_count = 0;
   inode->blocks = NULL;  // inode initially points to no blocks
 
+  // Function to add the i-node to the i-node store
+  mark_inode_as_used(ino);
+  store_inode_to_store(inode);
+
   return inode;
 }
 
@@ -52,6 +61,7 @@ void delete_inode(inode_t* inode)
     for (int i = 0; i < inode->block_count; i++)
     {
       mark_block_as_free(inode->blocks[i]);  // Function to mark the data block as free
+      delete_block_from_storage(inode->blocks[i]); // Function to delete the data block from the storage
     }
     free(inode->blocks);
   }
@@ -122,7 +132,7 @@ int read_inode(inode_t* inode, char* buf, size_t size, off_t offset)
   update_inode_access_time(inode);
 
   // Write the inode back to the store
-  write_inode_to_store(inode);
+  store_inode_to_store(inode);
 
   // Return the number of bytes read
   return bytes_read;
@@ -222,7 +232,7 @@ int write_inode(inode_t* inode, const char* buf, size_t size, off_t offset)
   update_inode_modification_time(inode);
 
   // Write the inode back to the store
-  write_inode_to_store(inode);
+  store_inode_to_store(inode);
 
   // Return the number of bytes written
   return bytes_written;
@@ -260,5 +270,50 @@ int change_inode_owner(inode_t* inode, uid_t uid, gid_t gid)
   update_inode_modification_time(inode);
 
   // Return success
+  return 0;
+}
+
+int write_block_to_inode(inode_t* inode, uint64_t block_index, data_block_t* block)
+{
+  // Check if we need to allocate a new block
+  if(block_index >= inode->block_count)
+  {
+    uint64_t new_block = find_free_block();
+    if(new_block == (uint64_t)-1)
+    {
+      // No free blocks available, handle error
+      return -1;
+    }
+
+    // Expand the blocks array
+    inode->blocks = (uint64_t*)realloc(inode->blocks, (inode->block_count + 1) * sizeof(uint64_t));
+    if(inode->blocks == NULL)
+    {
+      // Failed to allocate memory, handle error
+      return -1;
+    }
+
+    // Update the blocks array and the block count
+    inode->blocks[inode->block_count] = new_block;
+    inode->block_count++;
+
+    // Mark the new block as used
+    mark_block_as_used(new_block);
+  }
+
+  // Write the block data to the storage
+  if (write_block_to_storage(inode->blocks[block_index], block) == -1)
+  {
+    // Error writing to the block
+    return -1;
+  }
+
+  // Update the access and modification times of the inode
+  update_inode_access_time(inode);
+  update_inode_modification_time(inode);
+
+  // Write the inode back to the store
+  store_inode_to_store(inode);
+
   return 0;
 }

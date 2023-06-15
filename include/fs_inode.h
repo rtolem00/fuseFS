@@ -30,6 +30,7 @@ int change_inode_mode(inode_t* inode, mode_t mode);
 int change_inode_owner(inode_t* inode, uid_t uid, gid_t gid);
 void update_inode_access_time(inode_t* inode);
 void update_inode_modification_time(inode_t* inode);
+int write_block_to_inode(inode_t* inode, uint64_t block_index, data_block_t* block);
 
 
 #endif // FS_INODE_H

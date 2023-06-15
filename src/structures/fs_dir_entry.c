@@ -1,74 +1,94 @@
 #include <structures/fs_dir_entry.h>
+#include <fs_storage_backend.h>
 
 
-dir_t* create_dir(inode_t* inode)
+dir_entry_t* create_dir_entry(uint64_t ino, const char* filename)
 {
-  dir_t* dir = (dir_t*) malloc(sizeof(dir_t));
-  if(!dir)
+  dir_entry_t* entry = malloc(sizeof(dir_entry_t));
+  if (entry == NULL)
   {
-    // Handle allocation error
     return NULL;
   }
-  dir->inode = inode;
-  dir->entries = NULL;
-  dir->num_entries = 0;
-  return dir;
+  entry->ino = ino;
+  strcpy(entry->filename, filename);
+  entry->filename[sizeof(entry->filename)-1] = '\0';
+
+  return entry;
 }
 
-void delete_dir(dir_t* dir)
+void delete_dir_entry(dir_entry_t* entry)
 {
-  if(dir != NULL)
+  free(entry);
+}
+
+dir_entry_t* read_dir_entry(inode_t* inode, off_t offset)
+{
+  if (offset >= inode->size)
   {
-    if(dir->entries != NULL)
-    {
-      if(dir->num_entries == 0)
-      {
-        free(dir->entries);
-      }
-    }
-    delete_inode(dir->inode);
-    free(dir);
+    return NULL;
   }
+
+  dir_entry_t* entry = malloc(sizeof(dir_entry_t));
+  if (entry == NULL)
+  {
+    return NULL;
+  }
+
+  // Calculate the block index and the offset within the block
+  off_t block_index = offset / BLOCK_SIZE;
+  off_t block_offset = (offset % BLOCK_SIZE) / sizeof(dir_entry_t);
+
+  data_block_t* block = read_block_from_storage(inode->blocks[block_index]);
+  if (block == NULL)
+  {
+    return NULL;
+  }
+
+  // Copy the directory entry from the block
+  read_block(block, entry, sizeof(dir_entry_t), block_offset * sizeof(dir_entry_t));
+
+  // Clean up and return
+  free(block);
+  return entry;
 }
 
-int add_dir_entry(dir_t* dir, const char* name, uint64_t ino)
+int write_dir_entry(inode_t* dir_inode, dir_entry_t* dirent, off_t offset)
 {
-  dir->entries = (dir_entry_t*) realloc(dir->entries, sizeof(dir_entry_t) * (dir->num_entries + 1));
-  if(!dir->entries)
+  // Check if the offset is valid
+  if (offset < 0 || offset >= dir_inode->size)
   {
-    // Handle allocation error
+    // Invalid offset
     return -1;
   }
-  strncpy(dir->entries[dir->num_entries].filename, name, 256);
-  dir->entries[dir->num_entries].ino = ino;
-  dir->num_entries++;
-  return 0; // success
-}
 
-int remove_dir_entry(dir_t* dir, const char* name)
-{
-  for(uint64_t i = 0; i < dir->num_entries; i++)
-  {
-    if(strcmp(dir->entries[i].filename, name) == 0)
-    {
-      // Shift entries after i one position to the left
-      memmove(&dir->entries[i], &dir->entries[i+1], sizeof(dir_entry_t) * (dir->num_entries - i - 1));
-      dir->num_entries--;
-      dir->entries = (dir_entry_t*) realloc(dir->entries, sizeof(dir_entry_t) * dir->num_entries);
-      return 0; // success
-    }
-  }
-  return -1; // name not found
-}
+  // Calculate the block index and the offset within the block
+  off_t block_index = offset / BLOCK_SIZE;
+  off_t block_offset = (offset % BLOCK_SIZE) / sizeof(dir_entry_t);
 
-dir_entry_t* lookup_dir_entry(dir_t* dir, const char* name)
-{
-  for(uint64_t i = 0; i < dir->num_entries; i++)
+  // Read the block from the inode
+  if(block_index >= dir_inode->block_count)
   {
-    if(strcmp(dir->entries[i].filename, name) == 0)
-    {
-      return &dir->entries[i];
-    }
+    // Error: indirect blocks not implemented
+    return -1;
   }
-  return NULL; // name not found
+  data_block_t* block = read_block_from_storage(dir_inode->blocks[block_index]);
+  if (!block)
+  {
+    // Error reading the block
+    return -1;
+  }
+
+  // Write the directory entry to the block
+  write_block(block, dirent, sizeof(dir_entry_t), block_offset * sizeof(dir_entry_t));
+
+  // Write the block back to the inode
+  if (write_block_to_inode(dir_inode, block_index, block) < 0)
+  {
+    free(block);
+    return -1; // Error writing the block
+  }
+
+  // Clean up and return
+  free(block);
+  return 0;
 }

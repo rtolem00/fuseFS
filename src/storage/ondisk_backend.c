@@ -52,5 +52,11 @@ static data_block_t* disk_read_block(uint64_t block_number)
 storage_backend_t* create_disk_backend(char* path)
 {
   storage_path = path;
-  return create_backend(disk_write_block, disk_read_block);
+  return create_backend(disk_write_block, disk_read_block, delete_block_from_disk);
+}
+
+int delete_block_from_disk(uint64_t block_number)
+{
+  sprintf(file_name_buffer, "%s/block_%llu.bin", storage_path, block_number);
+  return unlink(file_name_buffer);
 }

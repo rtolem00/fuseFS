@@ -24,7 +24,14 @@
     "inode_bitmap.h": "c",
     "disk_bitmap.h": "c",
     "fs_inode.h": "c",
-    "stdio.h": "c"
+    "stdio.h": "c",
+    "types.h": "c",
+    "fs_file_descriptor.h": "c",
+    "btrfs_tree.h": "c",
+    "limits.h": "c",
+    "glib.h": "c",
+    "unistd.h": "c",
+    "errno.h": "c"
   },
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/**",
@@ -35,7 +42,9 @@
     "/usr/include/c++/7/bits",
     "/usr/include/c++/7/ext",
     "/usr/include/x86_64-linux-gnu/c++/7",
-    "/usr/include/x86_64-linux-gnu/c++/7/bits"
+    "/usr/include/x86_64-linux-gnu/c++/7/bits",
+    "/usr/include/glib-2.0",
+    "/usr/lib/x86_64-linux-gnu/glib-2.0/include"
   ],
   "editor.indentSize": "tabSize",
   "editor.tabSize": 2,
