@@ -1,65 +1,37 @@
 #include <structures/bitmap.h>
+#include <stdlib.h>
 
-// Assume we have a bitmap for inodes and blocks
-static unsigned char inode_bitmap[MAX_INODES / 8]; // Assuming a maximum of 1024 inodes
-static unsigned char block_bitmap[MAX_BLOCKS / 8]; // Assuming a maximum of 4096 blocks
 
-uint64_t find_free_inode()
+bitmap_t* create_bitmap(int (*set_bit)(uint64_t), int (*clear_bit)(uint64_t), uint64_t (*find_first_zero)(), int (*is_bit_set)(uint64_t))
 {
-  for (uint64_t i = 0; i < MAX_INODES; i++)
+  bitmap_t* bitmap = malloc(sizeof(bitmap_t));
+  if (bitmap == NULL)
   {
-    uint64_t byte = i / 8;
-    uint64_t bit = i % 8;
-    if ((inode_bitmap[byte] & (1 << bit)) == 0)
-    {
-      // Bit is not set, inode is free
-      mark_inode_as_used(i);
-      return i;
-    }
+    return NULL;
   }
-  return (uint64_t) -1; // No free inodes, handle this in your code
+  bitmap->set_bit = set_bit;
+  bitmap->clear_bit = clear_bit;
+  bitmap->find_first_zero = find_first_zero;
+  bitmap->is_bit_set = is_bit_set;
+  return bitmap;
 }
 
-void mark_inode_as_free(uint64_t ino)
+int set_bit(bitmap_t* bitmap, uint64_t bit)
 {
-  uint64_t byte = ino / 8;
-  uint64_t bit = ino % 8;
-  inode_bitmap[byte] &= ~(1 << bit); // Clear the bit
+  return bitmap->set_bit(bit);
 }
 
-void mark_inode_as_used(uint64_t ino)
+int clear_bit(bitmap_t* bitmap, uint64_t bit)
 {
-  uint64_t byte = ino / 8;
-  uint64_t bit = ino % 8;
-  inode_bitmap[byte] |= (1 << bit); // Set the bit
+  return bitmap->clear_bit(bit);
 }
 
-uint64_t find_free_block()
+uint64_t find_first_zero(bitmap_t* bitmap)
 {
-  for (uint64_t i = 0; i < MAX_BLOCKS; i++)
-  {
-    uint64_t byte = i / 8;
-    uint64_t bit = i % 8;
-    if ((block_bitmap[byte] & (1 << bit)) == 0)
-    {
-      // Bit is not set, block is free
-      mark_block_as_used(i);
-      return i;
-    }
-  }
-  return (uint64_t) -1; // No free blocks, handle this in your code
+  return bitmap->find_first_zero();
 }
 
-void mark_block_as_used(uint64_t block)
+int is_bit_set(bitmap_t* bitmap, uint64_t bit)
 {
-  uint64_t byte = block / 8;
-  uint64_t bit = block % 8;
-  block_bitmap[byte] |= (1 << bit); // Set the bit
-}
-
-void mark_block_as_free(uint64_t block)
-{
-  uint64_t byte = block / 8;
-  uint64_t bit = block % 8;
-  block_bitmap[byte] &= ~(1 << bit); // Clear the bit
+  return bitmap->is_bit_set(bit);
 }

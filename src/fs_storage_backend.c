@@ -1,5 +1,5 @@
-#include "fs_storage_backend.h"
-#include "fs_cache.h"
+#include <fs_storage_backend.h>
+#include <fs_cache.h>
 
 
 // Singleton instance of the storage backend
@@ -40,35 +40,4 @@ data_block_t* read_block_from_storage(uint64_t block_number)
   }
 
   return block;
-}
-
-data_block_t* read_block_from_disk(uint64_t block_number)
-{
-    pthread_mutex_lock(&cache.lock);
-    // First, try to get the block from the cache
-    data_block_t* block = get_block_from_cache(block_number);
-    pthread_mutex_unlock(&cache.lock);
-    if (block) {
-        return block;
-    }
-
-    // If the block is not in the cache, read it from disk
-    char path[256];
-    sprintf(path, "%s/block_%llu.bin", DATA_BLOCKS_DIR, block_number);
-
-    FILE* file = fopen(path, "rb");
-    if (!file) {
-        // If the file doesn't exist, we assume the block is free and return NULL
-        return NULL;
-    }
-
-    block = malloc(sizeof(data_block_t));
-    fread(block, sizeof(data_block_t), 1, file);
-
-    fclose(file);
-
-    // Add the block to the cache
-    add_block_to_cache(block_number, block);
-
-    return block;
 }

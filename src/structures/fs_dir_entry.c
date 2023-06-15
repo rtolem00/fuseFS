@@ -1,21 +1,74 @@
-#include "fs_dir_entry.h"
+#include <structures/fs_dir_entry.h>
 
 
-dir_entry_t* create_dir_entry(const char* name, inode_t* inode)
+dir_t* create_dir(inode_t* inode)
 {
-  // Allocate memory for the new directory entry
-  // Copy the name into the directory entry
-  // Assign the inode
-  // Return the new directory entry
+  dir_t* dir = (dir_t*) malloc(sizeof(dir_t));
+  if(!dir)
+  {
+    // Handle allocation error
+    return NULL;
+  }
+  dir->inode = inode;
+  dir->entries = NULL;
+  dir->num_entries = 0;
+  return dir;
 }
 
-void delete_dir_entry(dir_entry_t* entry)
+void delete_dir(dir_t* dir)
 {
-  // Free the memory associated with the directory entry
+  if(dir != NULL)
+  {
+    if(dir->entries != NULL)
+    {
+      if(dir->num_entries == 0)
+      {
+        free(dir->entries);
+      }
+    }
+    delete_inode(dir->inode);
+    free(dir);
+  }
 }
 
-int compare_dir_entry(dir_entry_t* entry, const char* name)
+int add_dir_entry(dir_t* dir, const char* name, uint64_t ino)
 {
-  // Compare the name in the directory entry with the given name
-  // Return the result of the comparison
+  dir->entries = (dir_entry_t*) realloc(dir->entries, sizeof(dir_entry_t) * (dir->num_entries + 1));
+  if(!dir->entries)
+  {
+    // Handle allocation error
+    return -1;
+  }
+  strncpy(dir->entries[dir->num_entries].filename, name, 256);
+  dir->entries[dir->num_entries].ino = ino;
+  dir->num_entries++;
+  return 0; // success
+}
+
+int remove_dir_entry(dir_t* dir, const char* name)
+{
+  for(uint64_t i = 0; i < dir->num_entries; i++)
+  {
+    if(strcmp(dir->entries[i].filename, name) == 0)
+    {
+      // Shift entries after i one position to the left
+      memmove(&dir->entries[i], &dir->entries[i+1], sizeof(dir_entry_t) * (dir->num_entries - i - 1));
+      dir->num_entries--;
+      dir->entries = (dir_entry_t*) realloc(dir->entries, sizeof(dir_entry_t) * dir->num_entries);
+      return 0; // success
+    }
+  }
+  return -1; // name not found
+}
+
+dir_entry_t* lookup_dir_entry(dir_t* dir, const char* name)
+{
+  for(uint64_t i = 0; i < dir->num_entries; i++)
+  {
+    if(strcmp(dir->entries[i].filename, name) == 0)
+    {
+      return &dir->entries[i];
+    }
+  }
+  return NULL; // name not found
 }

@@ -1,4 +1,4 @@
-#include "fs_file_descriptor.h"
+#include <structures/fs_file_descriptor.h>
 
 
 file_descriptor_t* open_file(inode_t* inode)

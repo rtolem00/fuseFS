@@ -1,19 +1,19 @@
 #ifndef LRU_CACHE_H
 #define LRU_CACHE_H
 
-#include "fs_data_block.h"
-#include "fs_cache.h"
+#include <structures/fs_data_block.h>
+#include <fs_cache.h>
 
 #define LRU_CACHE_SIZE 1024
 
-typedef struct lru_cache_entry_t
+typedef struct lru_cache_entry
 {
   uint64_t block_number;
   data_block_t* block;
   uint64_t age;
 } lru_cache_entry_t;
 
-typedef struct lru_cache_t
+typedef struct lru_cache
 {
   lru_cache_entry_t entries[LRU_CACHE_SIZE];
   uint64_t size;

@@ -2,9 +2,9 @@
 #define FS_STORAGE_BACKEND_H
 
 #include <stdint.h>
-#include "structures/fs_data_block.h"
+#include <structures/fs_data_block.h>
 
-typedef struct storage_backend_t
+typedef struct storage_backend
 {
   void (*write_block)(uint64_t block_number, data_block_t* block);
   data_block_t* (*read_block)(uint64_t block_number);

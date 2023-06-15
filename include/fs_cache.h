@@ -4,16 +4,10 @@
 #include <pthread.h>
 #include <stdint.h>
 
-#include "structures/fs_data_block.h"
+#include <structures/fs_data_block.h>
 
 
-typedef struct cache_entry_t
-{
-  uint64_t block_number;
-  data_block_t* block;
-} cache_entry_t;
-
-typedef struct cache_t
+typedef struct cache
 {
   void (*add_block)(uint64_t, data_block_t*);
   data_block_t* (*get_block)(uint64_t);

@@ -28,6 +28,8 @@ int read_inode(inode_t* inode, char* buf, size_t size, off_t offset);
 int write_inode(inode_t* inode, const char* buf, size_t size, off_t offset);
 int change_inode_mode(inode_t* inode, mode_t mode);
 int change_inode_owner(inode_t* inode, uid_t uid, gid_t gid);
+void update_inode_access_time(inode_t* inode);
+void update_inode_modification_time(inode_t* inode);
 
 
 #endif // FS_INODE_H

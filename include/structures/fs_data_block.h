@@ -4,9 +4,33 @@
 #define BLOCK_SIZE 4096
 
 #include <sys/types.h>
+#include <stdint.h>
 
-typedef struct data_block {
-  char data[BLOCK_SIZE];    // array to store actual data
+/*typedef enum
+{
+  DATA_BLOCK,
+  META_BLOCK,
+  DIRECTORY_BLOCK
+} block_type_t;
+
+typedef struct
+{
+  block_type_t block_type;
+  uint64_t block_number;
+  uint32_t checksum;
+  uint32_t data_length;
+} block_header_t;
+
+typedef struct
+{
+  block_header_t header;
+  uint8_t data[BLOCK_SIZE - sizeof(block_header_t)]; // Array to hold the actual data
+} data_block_t;
+*/
+
+typedef struct data_block
+{
+  char data[BLOCK_SIZE];
 } data_block_t;
 
 data_block_t* allocate_block();

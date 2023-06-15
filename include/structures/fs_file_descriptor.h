@@ -1,7 +1,7 @@
 #ifndef FS_FILE_DESCRIPTOR_H
 #define FS_FILE_DESCRIPTOR_H
 
-#include "fs_inode.h"
+#include <fs_inode.h>
 
 
 typedef struct file_descriptor {
