@@ -1,30 +1,40 @@
 #include <sys/stat.h>
-#include "../../include/operations/fs_getattr.h"
+#include <operations/fs_getattr.h>
+#include <errno.h>
+#include <stddef.h> // Add this line
+#include <fs_inode.h>
 
 int fs_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi)
 {
-  int res = 0;
-
-  // Clear the file attribute structure to 0
   memset(stbuf, 0, sizeof(struct stat));
 
-  // Implement your logic here to populate 'stbuf' with file attributes.
-  // This could involve querying your file system's data structures and/or underlying storage.
-  // Let's assume we're dealing with a regular file for now:
-
+  // root directory
   if (strcmp(path, "/") == 0)
   {
-    // Root directory
-    stbuf->st_mode = S_IFDIR | 0755;
+    stbuf->st_mode = __S_IFDIR | 0755;
     stbuf->st_nlink = 2;
   }
   else
-  {   
-    // Regular file
-    stbuf->st_mode = S_IFREG | 0644;
-    stbuf->st_nlink = 1;
-    stbuf->st_size = 1024;  // replace with your file size
+  {
+    // find the inode
+    inode_t* inode = get_inode_by_path(path);
+
+    if (inode == NULL)
+    {
+      // No such file or directory
+      return -ENOENT;
+    }
+        
+    stbuf->st_mode = inode->mode;
+    stbuf->st_nlink = inode->nlink;
+    stbuf->st_uid = inode->uid;
+    stbuf->st_gid = inode->gid;
+    stbuf->st_size = inode->size;
+    stbuf->st_atime = inode->atime;
+    stbuf->st_mtime = inode->mtime;
+    stbuf->st_ctime = inode->ctime;
+    stbuf->st_blocks = inode->block_count;
   }
 
-  return res;
+  return 0;
 }

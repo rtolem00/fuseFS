@@ -5,7 +5,7 @@
 // Singleton instance of the storage backend
 static storage_backend_t* backend;
 
-storage_backend_t* create_backend(void (*write_block)(uint64_t, data_block_t*), data_block_t* (*read_block)(uint64_t), int (*delete_block)(uint64_t))
+storage_backend_t* create_backend(int (*write_block)(uint64_t, data_block_t*), data_block_t* (*read_block)(uint64_t), int (*delete_block)(uint64_t))
 {
   storage_backend_t* new_backend = malloc(sizeof(storage_backend_t));
   new_backend->write_block = write_block;
@@ -19,23 +19,23 @@ void set_storage_backend(storage_backend_t* new_backend)
   backend = new_backend;
 }
 
-void write_block_to_storage(uint64_t block_number, data_block_t* block)
+int write_block_to_storage(uint64_t block_number, data_block_t* block)
 {
-  backend->write_block(block_number, block);
+  return backend->write_block(block_number, block);
 }
 
 data_block_t* read_block_from_storage(uint64_t block_number)
 {
   data_block_t* block = get_block_from_cache(block_number);
 
-  if (block)
+  if (block != NULL)
   {
     return block;
   }
 
   block = backend->read_block(block_number);
 
-  if (block)
+  if (block != NULL)
   {
     add_block_to_cache(block_number, block);
   }

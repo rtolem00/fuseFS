@@ -1,26 +1,68 @@
 #include <structures/fs_file_descriptor.h>
 
 
-file_descriptor_t* open_file(inode_t* inode)
+// Initialize the File descriptor store
+static file_descriptor_t** fd_store = NULL;
+static uint64_t fd_count = 0;
+
+file_descriptor_t* fd_create(inode_t *inode, off_t offset, int access_mode)
 {
-  // Allocate memory for the new file descriptor
-  // Assign the inode and initialize the offset
-  // Return the new file descriptor
+  // Allocate memory for a new file descriptor
+  file_descriptor_t* fd = (file_descriptor_t*) malloc(sizeof(file_descriptor_t));
+  if (fd == NULL)
+  {
+    // Out of memory
+    return NULL;
+  }
+
+  // Fill in the details
+  fd->fd = fd_count++;
+  fd->inode = inode;
+  fd->offset = offset;
+  fd->access_mode = access_mode;
+
+  // Add it to the store
+  fd_store = (file_descriptor_t**) realloc(fd_store, sizeof(file_descriptor_t*) * fd_count);
+  fd_store[fd->fd] = fd;
+
+  return fd;
 }
 
-void close_file(file_descriptor_t* fd)
+void fd_destroy(file_descriptor_t *fd)
 {
-  // Free the memory associated with the file descriptor
+  if (fd == NULL)
+  {
+    return;
+  }
+    
+  // Remove it from the store
+  fd_store[fd->fd] = NULL;
+    
+  // Free the memory
+  free(fd);
 }
 
-int read_file(file_descriptor_t* fd, char* buf, size_t size)
+file_descriptor_t* fd_find(uint64_t fd)
 {
-  // Call read_inode with the file descriptor's inode, buffer, size, and offset
-  // Update the file descriptor's offset
-  // Return the number of bytes read
+  if (fd >= fd_count)
+  {
+    // No such file descriptor
+    return NULL;
+  }
+    
+  return fd_store[fd];
 }
 
-int write_file(file_descriptor_t* fd, const char* buf, size_t size)
+int fd_find_inode(uint64_t ino, file_descriptor_t** fd)
 {
-  // Call write_inode with the file descriptor's inode
+  for (uint64_t i = 0; i < fd_count; i++)
+  {
+    if (fd_store[i] != NULL && fd_store[i]->inode->ino == ino)
+    {
+      *fd = fd_store[i];
+      return 0;
+    }
+  }
+    
+  return -1;
 }

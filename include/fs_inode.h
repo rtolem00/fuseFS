@@ -5,6 +5,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stddef.h>
+
+#include <structures/fs_data_block.h>
+
+
+#define MAX_INODE_SIZE 4096
 
 
 typedef struct inode
@@ -19,7 +25,7 @@ typedef struct inode
   time_t mtime;              // time of last modification
   time_t ctime;              // time of last status change
   uint64_t block_count;      // number of disk blocks allocated
-  uint64_t* blocks;          // array of pointers to data blocks
+  uint64_t* blocks;          // array of block numbers
 } inode_t;
 
 inode_t* create_inode(mode_t mode, uid_t uid, gid_t gid);

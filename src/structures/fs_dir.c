@@ -5,11 +5,6 @@
 #include <errno.h>
 
 
-int remove_from_directory(inode_t* dir_inode, const char* name) {
-    // Should find the dirent with the given name, remove it, and delete the inode if no more references to it exist
-    return -1;
-}
-
 dir_t* create_directory(const char* name, mode_t mode)
 {
   // Allocate memory for the directory
@@ -97,9 +92,10 @@ int delete_directory(dir_t* dir)
 dir_t* get_dir(inode_t* inode)
 {
   // Check if the inode is a directory
-  if (!(inode->mode & 0040000/*S_IFDIR*/))
+  if ((inode->mode & __S_IFMT) != __S_IFDIR)
   {
     // Not a directory
+    free(inode);
     return NULL;
   }
 
@@ -113,28 +109,87 @@ dir_t* get_dir(inode_t* inode)
 
   // Initialize the directory
   dir->inode = inode;
-  dir->entry_count = inode->size / sizeof(dir_entry_t);
-  dir->entries = malloc(inode->size);
-  if (!dir->entries)
-  {
-    // Out of memory
-    free(dir);
-    return NULL;
-  }
+  dir->entry_count = 0;
+  dir->entries = NULL;
 
-  // Read the directory entries from the inode's data blocks
+  // Read the directory entries
   for (uint64_t i = 0; i < inode->block_count; i++)
   {
-    if (read_block_from_storage(inode->blocks[i], &dir->entries[i * (BLOCK_SIZE / sizeof(dirent_t))]) < 0)
+    data_block_t* block = read_block_from_storage(inode->blocks[i]);
+    if (block == NULL)
     {
-      // Error reading the block
-      free(dir->entries);
-      free(dir);
+      // Error reading block
+      free_directory(dir);
       return NULL;
     }
+
+    // Add the entries from the block to the directory
+    for (off_t offset = 0; offset < BLOCK_SIZE; offset += sizeof(dir_entry_t))
+    {
+      dir_entry_t* entry = (dir_entry_t*)&block->data[offset];
+      if (entry->ino != 0)
+      {
+        // Add the entry to the directory
+        if (add_entry_to_directory(dir, entry) != 0)
+        {
+          // Error adding entry to directory
+          free(block);
+          free_directory(dir);
+          return NULL;
+        }
+      }
+    }
+
+    // Free the block
+    free(block);
   }
 
   return dir;
+}
+
+int add_entry_to_directory(dir_t* dir, dir_entry_t* entry)
+{
+  // Check if the entry already exists
+  for (uint64_t i = 0; i < dir->entry_count; i++)
+  {
+    if (strcmp(dir->entries[i].filename, entry->filename) == 0)
+    {
+      // Entry already exists
+      return -EEXIST;
+    }
+  }
+
+  // Allocate memory for the new entry
+  dir_entry_t* new_entry = malloc(sizeof(dir_entry_t));
+  if (!new_entry)
+  {
+    // Out of memory
+    return -ENOMEM;
+  }
+
+  // Copy the entry
+  memcpy(new_entry, entry, sizeof(dir_entry_t));
+
+  // Add the entry to the directory
+  dir->entries = realloc(dir->entries, (dir->entry_count + 1) * sizeof(dir_entry_t));
+  if (!dir->entries)
+  {
+    // Out of memory
+    free(new_entry);
+    return -ENOMEM;
+  }
+  dir->entries[dir->entry_count] = *new_entry;
+  dir->entry_count++;
+
+  return 0;
+}
+
+dir_t* get_dir(uint64_t ino)
+{
+  // Retrieve the inode
+  inode_t* inode = retrieve_inode_from_store(ino);
+  
+  return get_dir(inode);
 }
 
 int list_directory(dir_t* dir, char*** names)
@@ -245,6 +300,182 @@ int add_to_directory(dir_t* dir, const char* name, uint64_t ino)
   // Update the inode and write the block back to storage
   dir->inode->size += sizeof(entry);
   write_block_to_storage(dir->inode->blocks[dir->inode->block_count - 1], &block);
+
+  return 0; // Success
+}
+
+int remove_from_directory(dir_t* dir, const char* name)
+{
+  // Iterate over all directory entries
+  for (uint64_t i = 0; i < dir->inode->block_count; i++)
+  {
+    // Read the data block
+    data_block_t* block = read_block_from_storage(dir->inode->blocks[i]);
+    if (!block)
+    {
+      return -EIO; // Error reading block
+    }
+
+    // Iterate over the entries in the block
+    for (off_t offset = 0; offset < BLOCK_SIZE; offset += sizeof(dir_entry_t))
+    {
+      dir_entry_t* entry = (dir_entry_t*)&block->data[offset];
+
+      // Check if the entry matches the name we're looking for
+      if (entry->ino != 0 && strncmp(entry->filename, name, sizeof(entry->filename)) == 0)
+      {
+        inode_t* inode = retrieve_inode_from_store(entry->ino);
+        if (!inode)
+        {
+          // Error retrieving inode
+          return -EIO;
+        }
+        delete_inode(inode);
+        delete_dir_entry(entry);
+        free(block);
+
+        return 0; // Success
+      }
+    }
+    free(block);
+  }
+
+  // Entry not found
+  return -ENOENT;
+}
+
+dir_entry_t* get_dir_entry(dir_t* dir, const char* name)
+{
+  // Check for null arguments
+  if (dir == NULL || name == NULL)
+  {
+    return NULL;
+  }
+
+  // Iterate through all the entries in the directory
+  for (size_t i = 0; i < dir->entry_count; i++)
+  {
+    dir_entry_t* entry = read_dir_entry(dir->inode, i);
+    if (entry != NULL && strcmp(entry->filename, name) == 0)
+    {
+      return entry;
+    }
+    free(entry);
+  }
+
+  // If no matching entry was found, return NULL
+  return NULL;
+}
+
+int get_inode_by_path(const char* path, inode_t** inode)
+{
+  char* token;
+  char* rest = strdup(path);
+  dir_t* current_dir = root_dir;
+  // Initially set the inode to NULL
+  *inode = NULL;
+
+  while ((token = strtok_r(rest, "/", &rest)))
+  {
+    dir_entry_t* dir_entry = get_dir_entry(current_dir, token);
+    if (!dir_entry)
+    {
+      free(rest);
+      // No such file or directory
+      return -ENOENT;
+    }
+
+    *inode = retrieve_inode_from_store(dir_entry->ino);
+        
+    if (__S_ISDIR((*inode)->mode))
+    {
+      current_dir = get_dir(inode);
+    }
+  }
+
+  free(rest);
+
+  // If the loop finished without finding the inode, return an error
+  if (*inode == NULL)
+  {
+    // No such file or directory
+    return -ENOENT;
+  }
+
+  return inode;
+}
+
+int set_root_dir(dir_t* dir)
+{
+  if (!dir)
+  {
+    return -EINVAL;
+  }
+  root_dir = dir;
+  return 0;
+}
+
+dir_t* get_root_dir()
+{
+  return root_dir;
+}
+
+int create_root_dir(const char* path)
+{
+  // Create a root directory inode
+  inode_t* root_inode = create_inode(__S_IFDIR | 0755, getuid(), getgid());
+  if (root_inode == NULL)
+  {
+    // Not enough memory
+    return -ENOMEM;
+  }
+
+  // Allocate memory for the directory
+  dir_t* dir = malloc(sizeof(dir_t));
+  if (dir == NULL)
+  {
+    delete_inode(root_inode);
+    // Not enough memory
+    return -ENOMEM;
+  }
+
+  // Initialize the directory
+  dir->inode = root_inode;
+  dir->entries = NULL;
+  dir->entry_count = 0;
+
+  // Create a "." directory entry in the root directory
+  if (add_to_directory(dir, ".", root_inode->ino) != 0)
+  {
+    delete_directory(dir);
+    delete_inode(root_inode);
+    return -EIO; // I/O error
+  }
+
+  // Create a ".." directory entry in the root directory
+  // The inode number for ".." is the same as "." in the root directory
+  if (add_to_directory(dir, "..", root_inode->ino) != 0)
+  {
+    delete_directory(dir);
+    delete_inode(root_inode);
+    return -EIO; // I/O error
+  }
+
+  // Store the inode
+  if (store_inode_to_store(root_inode) < 0)
+  {
+    delete_directory(dir);
+    delete_inode(root_inode);
+    return -EIO; // I/O error
+  }
+
+  // Set the root directory
+  if (set_root_dir(dir) != 0)
+  {
+    delete_directory(dir);
+    delete_inode(root_inode);
+    return -EIO; // I/O error
+  }
 
   return 0; // Success
 }

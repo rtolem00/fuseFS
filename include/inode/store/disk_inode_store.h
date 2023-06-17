@@ -1,6 +1,6 @@
 // disk_bitmap.h
-#ifndef DISK_BITMAP_H
-#define DISK_BITMAP_H
+#ifndef _DISK_INODE_STORE_H
+#define _DISK_INODE_STORE_H
 
 #include <inode/inode_store.h>
 
@@ -13,4 +13,4 @@ inode_store_t* create_disk_inode_store(const char* inode_file);
 void destroy_disk_inode_store();
 
 
-#endif // DISK_BITMAP_H
+#endif // _DISK_INODE_STORE_H

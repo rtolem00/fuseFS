@@ -10,22 +10,23 @@
 static char file_name_buffer[256];
 static char* storage_path;
 
-static void disk_write_block(uint64_t block_number, data_block_t* block)
+static int disk_write_block(uint64_t block_number, data_block_t* block)
 {
   sprintf(file_name_buffer, "%s/block_%llu.bin", storage_path, block_number);
   int fd = open(file_name_buffer, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd == -1)
   {
     perror("open");
-    exit(EXIT_FAILURE);
+    return -1;
   }
   ssize_t write_result = write(fd, block->data, BLOCK_SIZE);
   if (write_result != BLOCK_SIZE)
   {
     perror("write");
-    exit(EXIT_FAILURE);
+    return -1;
   }
   close(fd);
+  return 0;
 }
 
 static data_block_t* disk_read_block(uint64_t block_number)

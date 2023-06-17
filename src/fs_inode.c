@@ -5,6 +5,8 @@
 #include <structures/bitmap/inode_bitmap.h>
 #include <structures/bitmap/block_bitmap.h>
 
+#include <errno.h>
+
 
 // Function to update the inode access time
 void update_inode_access_time(inode_t* inode)
@@ -315,5 +317,48 @@ int write_block_to_inode(inode_t* inode, uint64_t block_index, data_block_t* blo
   // Write the inode back to the store
   store_inode_to_store(inode);
 
+  return 0;
+}
+
+int change_inode_size(inode_t* inode, off_t size)
+{
+  if (size > inode->size)
+  {
+    // The file needs to be extended.
+    // Calculate how many blocks we need
+    uint64_t new_blocks_needed = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    uint64_t current_blocks = inode->block_count;
+    if (new_blocks_needed > current_blocks)
+    {
+      // We need to allocate more blocks.
+      for (uint64_t i = current_blocks; i < new_blocks_needed; i++)
+      {
+        uint64_t new_block = find_free_block();
+        if (new_block == (uint64_t)-1)
+        {
+          // No free blocks left
+          return -ENOSPC;
+        }
+        mark_block_as_used(new_block);
+        inode->blocks[i] = new_block;
+      }
+    }
+    inode->block_count = new_blocks_needed;
+  }
+  else if (size < inode->size)
+  {
+    // The file needs to be truncated.
+    // Calculate how many blocks we need to keep
+    uint64_t blocks_to_keep = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    // Free the unnecessary blocks
+    for (uint64_t i = blocks_to_keep; i < inode->block_count; i++)
+    {
+      mark_block_as_free(inode->blocks[i]);
+      inode->blocks[i] = 0;
+    }
+    inode->block_count = blocks_to_keep;
+  }
+  // Update the inode size
+  inode->size = size;
   return 0;
 }
